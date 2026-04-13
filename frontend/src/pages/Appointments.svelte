@@ -1,0 +1,328 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { api } from '../lib/api';
+  import { Calendar, Plus, ChevronLeft, ChevronRight, X, Trash2, Eye } from 'lucide-svelte';
+  import dayjs from 'dayjs';
+  import 'dayjs/locale/es';
+
+  dayjs.locale('es');
+
+  let appointments = $state<any[]>([]);
+  let patients = $state<any[]>([]);
+  let loading = $state(true);
+  let showModal = $state(false);
+  let showDayModal = $state(false);
+  let currentMonth = $state(dayjs());
+  let selectedDate = $state(dayjs());
+  let selectedDayAppointments = $state<any[]>([]);
+
+  let appointmentForm = $state({
+    patient_id: '',
+    date_time: '',
+    description: '',
+    status: 'pendiente'
+  });
+
+  onMount(async () => {
+    await Promise.all([loadAppointments(), loadPatients()]);
+  });
+
+  async function loadAppointments() {
+    loading = true;
+    try {
+      const start = currentMonth.startOf('month').toISOString();
+      const end = currentMonth.endOf('month').toISOString();
+      appointments = await api.appointments.list(start, end);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function loadPatients() {
+    try {
+      patients = await api.patients.list();
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  const daysInMonth = $derived.by(() => {
+    const days = [];
+    const startOfMonth = currentMonth.startOf('month');
+    const endOfMonth = currentMonth.endOf('month');
+    
+    for (let i = 0; i < startOfMonth.day(); i++) {
+      days.push(null);
+    }
+    
+    for (let i = 1; i <= endOfMonth.date(); i++) {
+      days.push(startOfMonth.date(i));
+    }
+    
+    return days;
+  });
+
+  function nextMonth() {
+    currentMonth = currentMonth.add(1, 'month');
+    loadAppointments();
+  }
+
+  function prevMonth() {
+    currentMonth = currentMonth.subtract(1, 'month');
+    loadAppointments();
+  }
+
+  function openModal(date: any = null) {
+    appointmentForm = {
+      patient_id: '',
+      date_time: date ? dayjs(date).hour(9).minute(0).format('YYYY-MM-DDTHH:mm') : dayjs().hour(9).minute(0).format('YYYY-MM-DDTHH:mm'),
+      description: '',
+      status: 'pendiente'
+    };
+    showModal = true;
+  }
+
+  function openDayView(date: any) {
+    if (!date) return;
+    selectedDate = date;
+    const apps = getAppointmentsForDay(date);
+    selectedDayAppointments = apps;
+    if (apps.length > 0) {
+      showDayModal = true;
+    } else {
+      openModal(date);
+    }
+  }
+
+  async function handleSubmit() {
+    try {
+      await api.appointments.create({
+        ...appointmentForm,
+        patient_id: parseInt(appointmentForm.patient_id) || 0
+      });
+      showModal = false;
+      await loadAppointments();
+    } catch (e) {
+      alert('Error: ' + e);
+    }
+  }
+
+  async function deleteAppointment(id: number) {
+    if (confirm('¿Eliminar cita?')) {
+      await api.appointments.delete(id);
+      await loadAppointments();
+    }
+  }
+
+  function getAppointmentsForDay(date: any) {
+    if (!date) return [];
+    const dateStr = date.format('YYYY-MM-DD');
+    return appointments.filter(a => dayjs(a.date_time).format('YYYY-MM-DD') === dateStr);
+  }
+
+  const statusColors: any = {
+    'pendiente': 'bg-orange-900/50 text-orange-300 border-orange-700/50',
+    'atendido': 'bg-green-900/50 text-green-300 border-green-700/50',
+    'cancelado': 'bg-red-900/50 text-red-300 border-red-700/50'
+  };
+</script>
+
+<div class="min-h-screen px-4 py-8 bg-[#012B33]">
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div>
+      <h1 class="text-4xl font-black text-white uppercase tracking-tighter">Cronograma de Citas</h1>
+      <p class="text-[#ADC9CD] font-medium italic">Organiza la agenda clínica de Dental Lorey con precisión.</p>
+    </div>
+
+    <button onclick={() => openModal()} class="btn-primary flex items-center space-x-2">
+      <Plus size={20} />
+      <span>Nueva Cita</span>
+    </button>
+  </div>
+
+  <!-- Calendar Interface -->
+  <div class="card p-0 overflow-hidden border-white/10 bg-[#013B44]">
+    <div class="p-6 border-b border-white/10 flex items-center justify-between bg-black/20 backdrop-blur-md">
+      <h2 class="text-2xl font-black text-white capitalize tracking-tighter">
+        {currentMonth.format('MMMM YYYY')}
+      </h2>
+      <div class="flex items-center space-x-3">
+        <button onclick={prevMonth} class="p-2.5 hover:bg-white/10 rounded-2xl text-[#C2D7DA] hover:text-white transition-all">
+          <ChevronLeft size={24} />
+        </button>
+        <button onclick={() => currentMonth = dayjs()} class="px-6 py-2 text-sm font-black bg-dent-kelly text-white rounded-xl hover:bg-white hover:text-dent-forest transition-all uppercase tracking-widest">
+          Hoy
+        </button>
+        <button onclick={nextMonth} class="p-2.5 hover:bg-white/10 rounded-2xl text-[#C2D7DA] hover:text-white transition-all">
+          <ChevronRight size={24} />
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-7 text-center border-b border-white/5 bg-black/40">
+      {#each ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'] as day}
+        <div class="py-3 text-[10px] font-black text-[#ADC9CD] uppercase tracking-[0.2em]">
+          {day}
+        </div>
+      {/each}
+    </div>
+
+    <div class="grid grid-cols-7 grid-rows-5 auto-rows-fr min-h-[600px] bg-black/20 gap-px">
+      {#each daysInMonth as date}
+        <div class="bg-[#014D67]/80 p-2 flex flex-col group min-h-[120px] border-b border-r border-white/5 relative hover:bg-white/5 transition-colors">
+          {#if date}
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-sm font-black {date.isSame(dayjs(), 'day') ? 'bg-dent-kelly text-white w-8 h-8 flex items-center justify-center rounded-xl shadow-lg shadow-dent-kelly/20' : 'text-[#C2D7DA]'}">
+                {date.date()}
+              </span>
+              {#if getAppointmentsForDay(date).length > 0}
+                <span class="bg-dent-mint text-dent-forest text-[10px] font-black px-2 py-0.5 rounded-lg shadow-sm">
+                  {getAppointmentsForDay(date).length}
+                </span>
+              {/if}
+            </div>
+
+            <div class="flex-1 space-y-1 overflow-hidden mb-8">
+              {#each getAppointmentsForDay(date).slice(0, 2) as appt}
+                <div class="text-[9px] p-1 rounded border shadow-sm {statusColors[appt.status]} truncate font-medium">
+                  {dayjs(appt.date_time).format('HH:mm')} - {appt.patient?.name || `P#${appt.patient_id}`}
+                </div>
+              {/each}
+              {#if getAppointmentsForDay(date).length > 2}
+                <div class="text-[8px] text-[#ADC9CD] font-bold pl-1 italic">
+                  + {getAppointmentsForDay(date).length - 2} más
+                </div>
+              {/if}
+            </div>
+
+            <div class="absolute bottom-2 left-2 right-2 flex justify-between opacity-0 group-hover:opacity-100 transition-all transform translate-y-1 group-hover:translate-y-0">
+              <button 
+                onclick={(e) => { e.stopPropagation(); openDayView(date); }} 
+                class="flex-1 mr-1 py-1.5 bg-[#014D67] hover:bg-dent-kelly text-white rounded-xl transition-all flex items-center justify-center space-x-1 border border-white/20 shadow-xl"
+                title="Ver citas"
+              >
+                <Eye size={12} />
+                <span class="text-[9px] font-black uppercase tracking-tighter">Ver</span>
+              </button>
+              <button 
+                onclick={(e) => { e.stopPropagation(); openModal(date); }} 
+                class="flex-1 ml-1 py-1.5 bg-[#014D67] hover:bg-dent-kelly text-white rounded-xl transition-all flex items-center justify-center space-x-1 border border-white/20 shadow-xl"
+                title="Añadir cita"
+              >
+                <Plus size={12} />
+                <span class="text-[9px] font-black uppercase tracking-tighter">Cita</span>
+              </button>
+            </div>
+          {/if}
+        </div>
+      {/each}
+    </div>
+  </div>
+</div>
+
+<!-- Modal Form -->
+{#if showModal}
+  <div class="fixed inset-0 bg-black/70 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+    <div class="bg-[#014D67] rounded-[2.5rem] w-full max-w-lg shadow-2xl animate-in fade-in zoom-in duration-200 border border-[#00ACB1]">
+      <div class="p-6 border-b border-[#00ACB1]/20 flex justify-between items-center">
+        <h1 class="text-xl font-black uppercase tracking-tight">Programar Cita</h1>
+        <button onclick={() => showModal = false} class="text-[#ADC9CD] hover:text-white transition-colors">
+          <X size={24} />
+        </button>
+      </div>
+
+      <form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="p-6 space-y-4">
+        <div>
+          <label for="a-patient" class="block text-sm font-medium text-[#ADC9CD] mb-1">Paciente *</label>
+          <select id="a-patient" bind:value={appointmentForm.patient_id} required class="input-field">
+            <option value="">Selecciona un paciente</option>
+            {#each patients as p}
+              <option value={p.id}>{p.name}</option>
+            {/each}
+          </select>
+        </div>
+        
+        <div>
+          <label for="a-date" class="block text-sm font-medium text-[#ADC9CD] mb-1">Fecha y Hora *</label>
+          <input id="a-date" type="datetime-local" bind:value={appointmentForm.date_time} required class="input-field" />
+        </div>
+
+        <div>
+          <label for="a-desc" class="block text-sm font-medium text-[#ADC9CD] mb-1">Descripción / Motivo</label>
+          <input id="a-desc" type="text" bind:value={appointmentForm.description} class="input-field" placeholder="Ej. Limpieza, Extracción..." />
+        </div>
+
+        <div>
+          <label for="a-status" class="block text-sm font-medium text-[#ADC9CD] mb-1">Estado</label>
+          <select id="a-status" bind:value={appointmentForm.status} class="input-field">
+            <option value="pendiente">Pendiente</option>
+            <option value="atendido">Atendido</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+        </div>
+
+        <div class="flex space-x-4 pt-4">
+          <button type="button" onclick={() => showModal = false} class="flex-1 px-4 py-3 border border-white/20 rounded-xl text-[#ADC9CD] hover:bg-white/10 font-bold transition-all">
+            Cancelar
+          </button>
+          <button type="submit" class="flex-1 btn-primary">
+            Confirmar Cita
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+{/if}
+
+{#if showDayModal}
+  <div class="fixed inset-0 bg-black/70 backdrop-blur-md z-[110] flex items-center justify-center p-4">
+    <div class="bg-[#014D67] rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-500 border border-[#00ACB1]">
+      <div class="p-6 bg-black/20 text-white flex justify-between items-center">
+        <div>
+          <h2 class="text-xl font-bold">Citas del Día</h2>
+          <p class="text-[#ADC9CD] text-sm">{selectedDate.format('D [de] MMMM, YYYY')}</p>
+        </div>
+        <button onclick={() => showDayModal = false} class="p-2 hover:bg-white/10 rounded-full transition-colors">
+          <X size={24} />
+        </button>
+      </div>
+
+      <div class="p-6 space-y-4 max-h-[400px] overflow-y-auto">
+        {#each selectedDayAppointments as appt}
+          <div class="flex items-start space-x-4 p-4 rounded-2xl border border-white/10 hover:border-[#00ACB1]/30 hover:bg-white/5 transition-all group">
+            <div class="bg-dent-kelly text-white px-3 py-1.5 rounded-xl font-bold text-sm">
+              {dayjs(appt.date_time).format('HH:mm')}
+            </div>
+            <div class="flex-1">
+              <h3 class="font-bold text-white">{appt.patient?.name || `Paciente #${appt.patient_id}`}</h3>
+              <p class="text-sm text-[#ADC9CD]">{appt.description || 'Sin descripción'}</p>
+              <div class="flex items-center mt-2 space-x-2">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase {statusColors[appt.status]}">
+                  {appt.status}
+                </span>
+              </div>
+            </div>
+            <button 
+              onclick={() => { deleteAppointment(appt.id); showDayModal = false; }} 
+              class="text-[#ADC9CD] hover:text-red-400 transition-colors"
+            >
+              <Trash2 size={18} />
+            </button>
+          </div>
+        {/each}
+      </div>
+
+      <div class="p-6 bg-black/20 border-t border-white/10">
+        <button 
+          onclick={() => { showDayModal = false; openModal(selectedDate); }}
+          class="w-full btn-primary py-4 rounded-2xl flex items-center justify-center space-x-2"
+        >
+          <Plus size={20} />
+          <span>Agregar otra cita</span>
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}

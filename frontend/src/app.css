@@ -1,0 +1,65 @@
+@import "tailwindcss";
+@source "../**/*.{svelte,ts,html}";
+
+@theme {
+  /* Fondo más oscuro */
+  --color-dent-forest: #012B33;
+  /* Colores más claros hacia el frente */
+  --color-dent-kelly: #00ACB1;
+  --color-dent-mint: #87E4DB;
+  --color-dent-gray-light: #C2D7DA;
+  --color-dent-gray-medium: #70A2A7;
+  --color-dent-gray-dark: #1F6C75;
+  
+  /* Mantener alias para compatibilidad */
+  --color-dent-blue: var(--color-dent-kelly);
+  --color-dent-blue-dark: #00898a;
+  --color-dent-green: #10b981;
+  --color-dent-green-dark: #059669;
+}
+
+/* Reset y base - fondo más oscuro */
+@layer base {
+  :root {
+    font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+    color-scheme: dark;
+    color: #ffffff;
+    background-color: #012B33;
+  }
+
+  body {
+    margin: 0;
+    display: flex;
+    min-width: 320px;
+    min-height: 100vh;
+    background-color: #012B33;
+  }
+}
+
+/* Componentes - cards más claros */
+@layer components {
+  .btn-primary {
+    @apply px-5 py-2.5 bg-dent-kelly text-white rounded-xl hover:bg-white hover:text-dent-forest transition-all duration-300 font-black shadow-lg shadow-black/20 hover:scale-105 active:scale-95 uppercase tracking-tight;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 bg-dent-gray-medium text-white rounded-lg hover:bg-dent-gray-light hover:text-dent-forest transition-all duration-200 font-bold;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-2 border border-white/20 rounded-xl focus:ring-2 focus:ring-dent-kelly focus:border-transparent outline-none bg-black/20 text-white placeholder-dent-gray-light;
+  }
+
+  .card {
+    @apply bg-white/10 p-6 rounded-[2rem] shadow-2xl border border-white/20 backdrop-blur-xl;
+  }
+}
+
+
+
+
+#app {
+  width: 100%;
+}

@@ -1,0 +1,23 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "3010:3010"
+    volumes:
+      - ./backend/data:/app/data
+
+    environment:
+      - SECRET_KEY=L0R3yD3nt_S3cr3t_K3y_Ch4ng3_M3
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - VITE_API_URL=http://localhost:3010/api
+    ports:
+      - "3011:3011"
+    depends_on:
+      - backend
+    restart: always
