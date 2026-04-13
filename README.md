@@ -1,85 +1,117 @@
-# 🦷 LoReyDent - Dental Practice Management System
+# 🦷 LoReyDent: Sistema de Gestión Dental Profesional
 
-LoReyDent es un sistema integral de gestión para consultorios dentales, diseñado para ser moderno, rápido y fácil de usar desde cualquier dispositivo. Permite llevar un control preciso de pacientes, agendar citas de forma visual y gestionar los pagos de los tratamientos.
-
-## 🚀 Características Principales
-
-*   **Gestión de Pacientes**: CRUD completo con historial clínico y notas.
-*   **Agenda Visual**: Cronograma interactivo para la gestión de citas (Pendiente, Atendido, Cancelado).
-*   **Módulo de Pagos**: Registro de ingresos, métodos de pago y seguimiento financiero.
-*   **Autenticación Segura**: Sistema de login basado en JWT (JSON Web Tokens).
-*   **Diseño Premium**: Interfaz clínica limpia, responsive y con modo claro optimizado.
-
-## 🛠️ Stack Tecnológico
-
-*   **Backend**: FastAPI (Python 3.11) + SQLAlchemy.
-*   **Frontend**: Svelte 5 + Vite + Tailwind CSS v4.
-*   **Base de Datos**: SQLite (almacenada localmente para portabilidad).
-*   **Contenedores**: Docker & Docker Compose.
+**LoReyDent** es una solución integral diseñada para clínicas dentales que buscan modernizar su gestión operativa, desde la atención al paciente hasta el control financiero y el agendado automático.
 
 ---
 
-## 💻 Desarrollo y Ejecución
+## ✨ Características Principales
 
-### Opción A: Usando Docker (Recomendado)
+### 👨‍⚕️ Para la Clínica (Panel Administrativo)
+- **Dashboard Operativo**: Resumen rápido de citas del día y estados financieros.
+- **Gestión de Pacientes**: Expedientes detallados con historial de tratamientos y notas clínicas.
+- **Calendario Administrativo**: Control total sobre la agenda, creación manual de citas y gestión de estados (confirmada, cancelada, completada).
+- **Módulo de Pagos**: Registro de ingresos asociados a tratamientos, manteniendo un historial claro de cobros.
+- **Configuración de Disponibilidad**: Herramienta flexible para definir horarios de trabajo por día de la semana, manejando automáticamente los slots para el portal público.
+- **Seguridad Robusta**: Acceso restringido mediante usuarios y contraseñas con encriptación y sesiones seguras (JWT).
 
-La forma más rápida de iniciar es usando Docker Compose, ya que configura automáticamente el backend, el frontend y la base de datos.
+### 🤳 Para el Paciente (Portal Público)
+- **Auto-Agendado Online**: Interfaz intuitiva para que los pacientes seleccionen el servicio y el horario que mejor les convenga.
+- **Validación en Tiempo Real**: El sistema solo muestra horarios libres basados en la configuración de la clínica y las citas existentes.
+- **Confirmación vía WhatsApp**: Una vez seleccionada la cita, el sistema genera automáticamente un mensaje personalizado para confirmar vía WhatsApp con un solo clic.
 
-1.  **Construir e iniciar los servicios**:
-    ```bash
-    docker compose up --build -d
-    ```
-2.  **Inicializar la base de datos con un usuario administrador**:
-    ```bash
-    docker compose exec backend python seed.py
-    ```
-    *   **Usuario**: `admin`
-    *   **Contraseña**: `admin123`
+---
 
-3.  **Acceso**:
-    *   Frontend: `http://localhost:3011`
-    *   API / Swagger: `http://localhost:3010/docs`
+## 🚀 Guía de Despliegue en Producción (AWS Lightsail)
 
-### Opción B: Ejecución Local (Sin Docker)
+Esta guía detalla cómo poner en marcha el sistema en un VPS con **2GB de RAM**, optimizando el uso de recursos.
 
-Si deseas desarrollar sin contenedores, sigue estos pasos:
+### 1️⃣ Requisitos del Sistema
+Asegúrate de tener instalados los siguientes componentes en tu servidor Linux:
+- **Docker** y **Docker Compose v2+**.
+- **Caddy Server** (Servidor web y proxy con SSL automático).
+- **Git** (Para gestionar el código).
 
-#### Backend
+### 2️⃣ Configuración de Red en AWS Lightsail
+En el panel de control de tu instancia de Lightsail, abre los siguientes puertos en la pestaña de **Networking**:
+- `80 (HTTP)`
+- `443 (HTTPS)`
+- `22 (SSH)`
+
+### 3️⃣ Instalación y Configuración del Proyecto
+Clona el repositorio en tu servidor (ej. en `/home/ubuntu/loreydent`) y prepara las variables de entorno:
+
 ```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # En Windows: venv\Scripts\activate
-pip install -r requirements.txt
-python seed.py  # Solo la primera vez
-uvicorn main:app --reload --port 3010
+# Crear archivo de variables de entorno
+touch .env
 ```
 
-#### Frontend
+Edita el archivo `.env` y agrega una clave secreta única:
+```env
+JWT_SECRET_KEY=TU_CLAVE_SECRETA_SUPER_LARGA_AQUI
+```
+
+### 4️⃣ Despliegue Automatizado con `deploy.sh`
+Hemos incluido un script que maneja todo el proceso de actualización y mantenimiento automático:
+
 ```bash
-cd frontend
-npm install
-npm run dev -- --port 3011
+# Dar permisos de ejecución
+chmod +x deploy.sh
+
+# Ejecutar el despliegue
+./deploy.sh
+```
+
+**¿Qué hace este script?**
+1. Detiene los contenedores anteriores para liberar memoria RAM.
+2. Construye las nuevas imágenes (Backend y Frontend).
+3. Levanta los servicios optimizados.
+4. Limpia imágenes antiguas para ahorrar espacio en disco.
+
+### 5️⃣ Inicialización de Datos (Primer Despliegue)
+Solo la primera vez, ejecuta el script de "semilla" para crear el usuario administrador:
+```bash
+docker compose exec backend python seed.py
+```
+*   **Usuario**: `admin`
+*   **Contraseña**: `admin123` (Cámbiala inmediatamente en el panel).
+
+---
+
+## 🌐 Configuración del Proxy Inverso (Caddy)
+
+Caddy se encargará del SSL automático (HTTPS) y de dirigir el tráfico a los contenedores correctos. Edita tu `/etc/caddy/Caddyfile`:
+
+```caddy
+loreycontrol.irisvisual.com {
+    # Apuntar al Frontend de LoReyDent (Puerto 3011)
+    reverse_proxy localhost:3011
+
+    # Redirigir peticiones de API al Backend (Puerto 3010)
+    handle_path /api/* {
+        reverse_proxy localhost:3010
+    }
+
+    # Optimización y Seguridad
+    encode zstd gzip
+    header {
+        Strict-Transport-Security "max-age=31536000;"
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy no-referrer-when-downgrade
+    }
+}
+```
+
+Aplica los cambios en Caddy:
+```bash
+sudo systemctl reload caddy
 ```
 
 ---
 
-## 🌐 Despliegue a Producción
-
-Para llevar LoReyDent a producción, considera los siguientes puntos:
-
-1.  **Seguridad de JWT**: Cambia la `SECRET_KEY` en el archivo `backend/auth.py` o pásala como variable de entorno.
-2.  **Configuración de CORS**: En `backend/main.py`, ajusta `allow_origins` para permitir solo el dominio donde alojarás el sistema.
-3.  **Persistencia de Datos**: Al usar el contenedor de Docker actual, la base de datos se guarda en `backend/data/loreydent.db`. Se recomienda configurar un volumen en `docker-compose.yml` para asegurar que los datos no se pierdan al borrar el contenedor.
-
-    ```yaml
-    volumes:
-      - ./backend/data:/app/data
-    ```
-4.  **Servidor Web**: Para producción, se recomienda usar un proxy inverso como **Nginx** o **Caddy** para servir el frontend y gestionar certificados SSL (HTTPS).
-
-## 📄 Licencia
-
-Este proyecto ha sido desarrollado como una solución personalizada para la gestión dental profesional.
+## 📊 Mantenimiento y Backups
+- **Base de Datos**: Se encuentra en `backend/data/loreydent.db`. Se recomienda hacer copias de seguridad de este archivo semanalmente.
+- **Logs**: Puedes ver los logs del sistema con `docker compose logs -f`.
 
 ---
-© 2026 LoReyDent - Gestión Dental Profesional.
+© 2026 **LoReyDent** - Desarrollado para gestión odontológica de alto rendimiento.

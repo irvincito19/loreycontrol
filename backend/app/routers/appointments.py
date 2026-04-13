@@ -30,10 +30,27 @@ async def create_appointment(
     db_patient = db.query(models.Patient).filter(models.Patient.id == appointment.patient_id).first()
     if not db_patient:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
+
+    # Verificar disponibilidad (concurrencia)
+    existing_appointment = db.query(models.Appointment).filter(
+        models.Appointment.date_time == appointment.date_time,
+        models.Appointment.status != "cancelado"
+    ).first()
+    
+    if existing_appointment:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El horario seleccionado ya no está disponible"
+        )
         
     db_appointment = models.Appointment(**appointment.dict())
     db.add(db_appointment)
-    db.commit()
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Error al guardar la cita: Posible conflicto de horario")
+        
     db.refresh(db_appointment)
     return db_appointment
 

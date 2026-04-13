@@ -63,5 +63,11 @@ export const api = {
         list: () => request('/payments/'),
         listByPatient: (id: number) => request(`/payments/patient/${id}`),
         create: (data: any) => request('/payments/', { method: 'POST', body: JSON.stringify(data) }),
+    },
+    availability: {
+        getConfig: () => request('/availability/config'),
+        updateConfig: (data: any) => request('/availability/config', { method: 'POST', body: JSON.stringify(data) }),
+        getSlots: (date: string) => request(`/availability/slots?date=${date}`),
+        updateOverride: (data: any) => request('/availability/overrides', { method: 'POST', body: JSON.stringify(data) }),
     }
 };

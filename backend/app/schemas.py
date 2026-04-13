@@ -85,3 +85,39 @@ class PatientDetail(Patient):
 
     class Config:
         from_attributes = True
+
+# Availability Schemas
+class AvailabilityBase(BaseModel):
+    day_of_week: int
+    start_time: str
+    end_time: str
+    slot_duration: int = 30
+    active: bool = True
+
+class AvailabilityCreate(AvailabilityBase):
+    pass
+
+class Availability(AvailabilityBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+class AvailabilityOverrideBase(BaseModel):
+    date: str
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    is_blocked: bool = False
+
+class AvailabilityOverrideCreate(AvailabilityOverrideBase):
+    pass
+
+class AvailabilityOverride(AvailabilityOverrideBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+class Slot(BaseModel):
+    time: str
+    available: bool

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { link } from 'svelte-spa-router';
   import { auth } from '../stores/auth';
-  import { Users, Calendar, CreditCard, LayoutDashboard, LogOut, Menu, X } from 'lucide-svelte';
+  import { Users, Calendar, CreditCard, LayoutDashboard, LogOut, Menu, X, Clock } from 'lucide-svelte';
 
   let isMenuOpen = false;
 
@@ -40,6 +40,10 @@
           <CreditCard size={18} />
           <span>Pagos</span>
         </a>
+        <a href="/availability" use:link class="flex items-center space-x-1 px-3 py-2 rounded-lg text-sm font-bold text-slate-300 hover:bg-slate-800 hover:text-dent-blue transition-all">
+          <Clock size={18} />
+          <span>Agenda</span>
+        </a>
         <button on:click={handleLogout} class="flex items-center space-x-1 px-3 py-2 rounded-lg text-sm font-bold text-red-400 hover:bg-red-950/30 transition-all">
           <LogOut size={18} />
           <span>Salir</span>
@@ -77,6 +81,10 @@
       <a href="/payments" use:link on:click={closeMenu} class="flex items-center space-x-3 text-[#ADC9CD] font-medium hover:text-white transition-colors">
         <CreditCard size={20} />
         <span>Pagos</span>
+      </a>
+      <a href="/availability" use:link on:click={closeMenu} class="flex items-center space-x-3 text-[#ADC9CD] font-medium hover:text-white transition-colors">
+        <Clock size={20} />
+        <span>Agenda</span>
       </a>
       <button on:click={() => { auth.logout(); closeMenu(); }} class="flex items-center space-x-3 text-red-400 font-medium w-full text-left hover:text-red-300 transition-colors">
         <LogOut size={20} />

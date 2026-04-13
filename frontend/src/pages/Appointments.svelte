@@ -18,13 +18,37 @@
 
   let appointmentForm = $state({
     patient_id: '',
-    date_time: '',
+    date: dayjs().format('YYYY-MM-DD'),
+    time: '',
     description: '',
     status: 'pendiente'
   });
 
+  let slots = $state<any[]>([]);
+  let loadingSlots = $state(false);
+
   onMount(async () => {
     await Promise.all([loadAppointments(), loadPatients()]);
+  });
+
+  async function loadSlots(date: string) {
+    if (!date) return;
+    loadingSlots = true;
+    try {
+      slots = await api.availability.getSlots(date);
+    } catch (e) {
+      console.error(e);
+      slots = [];
+    } finally {
+      loadingSlots = false;
+    }
+  }
+
+  // Cargar slots cuando cambie la fecha
+  $effect(() => {
+    if (appointmentForm.date) {
+      loadSlots(appointmentForm.date);
+    }
   });
 
   async function loadAppointments() {
@@ -75,12 +99,15 @@
   }
 
   function openModal(date: any = null) {
+    const dateStr = date ? dayjs(date).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD');
     appointmentForm = {
       patient_id: '',
-      date_time: date ? dayjs(date).hour(9).minute(0).format('YYYY-MM-DDTHH:mm') : dayjs().hour(9).minute(0).format('YYYY-MM-DDTHH:mm'),
+      date: dateStr,
+      time: '',
       description: '',
       status: 'pendiente'
     };
+    loadSlots(dateStr);
     showModal = true;
   }
 
@@ -97,10 +124,18 @@
   }
 
   async function handleSubmit() {
+    if (!appointmentForm.time) {
+      alert('Por favor, selecciona un horario disponible.');
+      return;
+    }
+
     try {
+      const dateTime = `${appointmentForm.date}T${appointmentForm.time}:00`;
       await api.appointments.create({
-        ...appointmentForm,
-        patient_id: parseInt(appointmentForm.patient_id) || 0
+        patient_id: parseInt(appointmentForm.patient_id) || 0,
+        date_time: dateTime,
+        description: appointmentForm.description,
+        status: appointmentForm.status
       });
       showModal = false;
       await loadAppointments();
@@ -224,89 +259,141 @@
 
 <!-- Modal Form -->
 {#if showModal}
-  <div class="fixed inset-0 bg-black/70 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-    <div class="bg-[#014D67] rounded-[2.5rem] w-full max-w-lg shadow-2xl animate-in fade-in zoom-in duration-200 border border-[#00ACB1]">
-      <div class="p-6 border-b border-[#00ACB1]/20 flex justify-between items-center">
-        <h1 class="text-xl font-black uppercase tracking-tight">Programar Cita</h1>
-        <button onclick={() => showModal = false} class="text-[#ADC9CD] hover:text-white transition-colors">
+  <div class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+    <div class="bg-[#014D67] rounded-[2.5rem] w-full max-w-4xl shadow-2xl animate-in fade-in zoom-in duration-200 border border-[#00ACB1]/30 overflow-hidden">
+      <div class="p-6 border-b border-[#00ACB1]/20 flex justify-between items-center bg-black/20">
+        <div>
+          <h1 class="text-xl font-black uppercase tracking-tight text-white">Programar Cita</h1>
+          <p class="text-[10px] text-[#ADC9CD] font-black uppercase tracking-widest">Paso 1: Selecciona fecha y horario</p>
+        </div>
+        <button onclick={() => showModal = false} class="text-[#ADC9CD] hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full">
           <X size={24} />
         </button>
       </div>
 
-      <form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="p-6 space-y-4">
-        <div>
-          <label for="a-patient" class="block text-sm font-medium text-[#ADC9CD] mb-1">Paciente *</label>
-          <select id="a-patient" bind:value={appointmentForm.patient_id} required class="input-field">
-            <option value="">Selecciona un paciente</option>
-            {#each patients as p}
-              <option value={p.id}>{p.name}</option>
-            {/each}
-          </select>
-        </div>
-        
-        <div>
-          <label for="a-date" class="block text-sm font-medium text-[#ADC9CD] mb-1">Fecha y Hora *</label>
-          <input id="a-date" type="datetime-local" bind:value={appointmentForm.date_time} required class="input-field" />
-        </div>
+      <div class="grid md:grid-cols-2 gap-0 overflow-y-auto max-h-[85vh]">
+        <!-- Left: Basic Info -->
+        <form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="p-8 space-y-6 border-r border-[#00ACB1]/10">
+          <div>
+            <label for="a-patient" class="block text-xs font-black text-[#ADC9CD] mb-3 uppercase tracking-widest">Paciente *</label>
+            <select id="a-patient" bind:value={appointmentForm.patient_id} required class="input-field">
+              <option value="">Selecciona un paciente</option>
+              {#each patients as p}
+                <option value={p.id}>{p.name}</option>
+              {/each}
+            </select>
+          </div>
+          
+          <div>
+            <label for="a-date" class="block text-xs font-black text-[#ADC9CD] mb-3 uppercase tracking-widest">Fecha deseada *</label>
+            <input id="a-date" type="date" bind:value={appointmentForm.date} required class="input-field" />
+          </div>
 
-        <div>
-          <label for="a-desc" class="block text-sm font-medium text-[#ADC9CD] mb-1">Descripción / Motivo</label>
-          <input id="a-desc" type="text" bind:value={appointmentForm.description} class="input-field" placeholder="Ej. Limpieza, Extracción..." />
-        </div>
+          <div>
+            <label for="a-desc" class="block text-xs font-black text-[#ADC9CD] mb-3 uppercase tracking-widest">Descripción / Motivo</label>
+            <textarea id="a-desc" bind:value={appointmentForm.description} class="input-field h-28 resize-none" placeholder="Ej. Limpieza profunda, revisión..." ></textarea>
+          </div>
 
-        <div>
-          <label for="a-status" class="block text-sm font-medium text-[#ADC9CD] mb-1">Estado</label>
-          <select id="a-status" bind:value={appointmentForm.status} class="input-field">
-            <option value="pendiente">Pendiente</option>
-            <option value="atendido">Atendido</option>
-            <option value="cancelado">Cancelado</option>
-          </select>
-        </div>
+          <div class="flex space-x-4 pt-6">
+            <button type="button" onclick={() => showModal = false} class="flex-1 px-4 py-4 border border-white/10 rounded-2xl text-[#ADC9CD] hover:bg-white/5 font-black uppercase text-xs tracking-widest transition-all">
+              Cancelar
+            </button>
+            <button type="submit" disabled={!appointmentForm.time} class="flex-1 btn-primary py-4 disabled:opacity-30 disabled:cursor-not-allowed shadow-xl shadow-dent-blue/20">
+              Confirmar
+            </button>
+          </div>
+        </form>
 
-        <div class="flex space-x-4 pt-4">
-          <button type="button" onclick={() => showModal = false} class="flex-1 px-4 py-3 border border-white/20 rounded-xl text-[#ADC9CD] hover:bg-white/10 font-bold transition-all">
-            Cancelar
-          </button>
-          <button type="submit" class="flex-1 btn-primary">
-            Confirmar Cita
-          </button>
+        <!-- Right: Slot Selector -->
+        <div class="p-8 bg-black/10 flex flex-col h-full">
+          <div class="block text-xs font-black text-[#ADC9CD] mb-4 uppercase tracking-widest">Horarios Disponibles</div>
+          
+          {#if loadingSlots}
+            <div class="flex flex-col items-center justify-center flex-1 py-12 space-y-4">
+              <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-dent-kelly"></div>
+              <span class="text-[10px] font-black text-[#ADC9CD] uppercase tracking-widest animate-pulse">Consultando agenda...</span>
+            </div>
+          {:else if slots.length === 0}
+            <div class="flex flex-col items-center justify-center flex-1 py-12 text-center space-y-4">
+              <Calendar size={48} class="text-white/10" />
+              <div class="space-y-1">
+                <p class="text-sm font-bold text-white/50 uppercase tracking-tighter">Sin Disponibilidad</p>
+                <p class="text-[10px] text-[#ADC9CD] font-medium italic">No hay horarios configurados para este día.</p>
+              </div>
+            </div>
+          {:else}
+            <div class="grid grid-cols-3 gap-3 overflow-y-auto pr-2">
+              {#each slots as slot}
+                <button 
+                  type="button"
+                  onclick={() => { if (slot.available) appointmentForm.time = slot.time; }}
+                  disabled={!slot.available}
+                  class="py-4 px-2 rounded-2xl border text-xs font-black transition-all transform active:scale-95
+                    {slot.available 
+                      ? (appointmentForm.time === slot.time 
+                          ? 'bg-dent-kelly border-dent-kelly text-white shadow-xl shadow-dent-kelly/30 scale-105 z-10' 
+                          : 'border-white/10 bg-white/5 text-[#ADC9CD] hover:border-dent-kelly hover:text-white hover:bg-dent-kelly/10')
+                      : 'border-white/5 bg-black/40 text-white/10 cursor-not-allowed opacity-30 grayscale'}"
+                >
+                  {slot.time}
+                </button>
+              {/each}
+            </div>
+            <div class="mt-8 pt-6 border-t border-white/5">
+                <div class="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-[#ADC9CD]">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-3 h-3 rounded-full bg-dent-kelly"></div>
+                        <span>Seleccionado</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <div class="w-3 h-3 rounded-full bg-white/10"></div>
+                        <span>Disponible</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <div class="w-3 h-3 rounded-full bg-black/40 opacity-30"></div>
+                        <span>Ocupado</span>
+                    </div>
+                </div>
+            </div>
+          {/if}
         </div>
-      </form>
+      </div>
     </div>
   </div>
 {/if}
 
+<!-- Day View Modal stays mostly same but updated with cleaner UI -->
 {#if showDayModal}
-  <div class="fixed inset-0 bg-black/70 backdrop-blur-md z-[110] flex items-center justify-center p-4">
-    <div class="bg-[#014D67] rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-500 border border-[#00ACB1]">
+  <div class="fixed inset-0 bg-black/80 backdrop-blur-md z-[110] flex items-center justify-center p-4">
+    <div class="bg-[#014D67] rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-500 border border-[#00ACB1]/30">
       <div class="p-6 bg-black/20 text-white flex justify-between items-center">
         <div>
-          <h2 class="text-xl font-bold">Citas del Día</h2>
-          <p class="text-[#ADC9CD] text-sm">{selectedDate.format('D [de] MMMM, YYYY')}</p>
+          <h2 class="text-xl font-black uppercase tracking-tighter">Citas del Día</h2>
+          <p class="text-[#ADC9CD] text-[10px] font-black uppercase tracking-widest mt-1">{selectedDate.format('D [de] MMMM, YYYY')}</p>
         </div>
         <button onclick={() => showDayModal = false} class="p-2 hover:bg-white/10 rounded-full transition-colors">
           <X size={24} />
         </button>
       </div>
 
-      <div class="p-6 space-y-4 max-h-[400px] overflow-y-auto">
+      <div class="p-6 space-y-3 max-h-[400px] overflow-y-auto">
         {#each selectedDayAppointments as appt}
-          <div class="flex items-start space-x-4 p-4 rounded-2xl border border-white/10 hover:border-[#00ACB1]/30 hover:bg-white/5 transition-all group">
-            <div class="bg-dent-kelly text-white px-3 py-1.5 rounded-xl font-bold text-sm">
+          <div class="flex items-start space-x-4 p-4 rounded-[1.5rem] border border-white/10 hover:border-[#00ACB1]/30 hover:bg-white/5 transition-all group">
+            <div class="bg-dent-kelly text-white px-3 py-1.5 rounded-xl font-black text-xs shadow-lg shadow-dent-kelly/10">
               {dayjs(appt.date_time).format('HH:mm')}
             </div>
             <div class="flex-1">
-              <h3 class="font-bold text-white">{appt.patient?.name || `Paciente #${appt.patient_id}`}</h3>
-              <p class="text-sm text-[#ADC9CD]">{appt.description || 'Sin descripción'}</p>
-              <div class="flex items-center mt-2 space-x-2">
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase {statusColors[appt.status]}">
+              <h3 class="font-black text-white text-sm uppercase tracking-tight">{appt.patient?.name || `Paciente #${appt.patient_id}`}</h3>
+              <p class="text-[11px] text-[#ADC9CD] italic mt-0.5">{appt.description || 'Sin descripción'}</p>
+              <div class="flex items-center mt-2">
+                <span class="px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest border {statusColors[appt.status]}">
                   {appt.status}
                 </span>
               </div>
             </div>
             <button 
               onclick={() => { deleteAppointment(appt.id); showDayModal = false; }} 
-              class="text-[#ADC9CD] hover:text-red-400 transition-colors"
+              class="text-[#ADC9CD] hover:text-red-400 transition-colors p-2 hover:bg-red-950/20 rounded-xl"
             >
               <Trash2 size={18} />
             </button>
@@ -317,7 +404,7 @@
       <div class="p-6 bg-black/20 border-t border-white/10">
         <button 
           onclick={() => { showDayModal = false; openModal(selectedDate); }}
-          class="w-full btn-primary py-4 rounded-2xl flex items-center justify-center space-x-2"
+          class="w-full btn-primary py-4 rounded-2xl flex items-center justify-center space-x-3 text-sm font-black uppercase tracking-widest"
         >
           <Plus size={20} />
           <span>Agregar otra cita</span>
@@ -326,3 +413,10 @@
     </div>
   </div>
 {/if}
+
+<style>
+  @reference "../app.css";
+  .input-field {
+    @apply w-full bg-black/40 border-white/10 text-white p-4 rounded-2xl focus:border-dent-kelly focus:ring-1 focus:ring-dent-kelly transition-all placeholder-white/20 text-sm;
+  }
+</style>

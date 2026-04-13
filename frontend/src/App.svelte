@@ -8,6 +8,8 @@
   import Patients from './pages/Patients.svelte';
   import Appointments from './pages/Appointments.svelte';
   import Payments from './pages/Payments.svelte';
+  import Availability from './pages/Availability.svelte';
+  import PublicBooking from './pages/PublicBooking.svelte';
 
   const routes = {
     '/login': Login,
@@ -15,17 +17,21 @@
     '/patients': Patients,
     '/appointments': Appointments,
     '/payments': Payments,
+    '/availability': Availability,
+    '/booking': PublicBooking,
     '*': Dashboard,
   };
 
+  const publicRoutes = ['#/login', '#/booking'];
+
   onMount(async () => {
     await auth.init();
-    if (!$auth.authenticated && window.location.hash !== '#/login') {
+    if (!$auth.authenticated && !publicRoutes.includes(window.location.hash)) {
       push('/login');
     }
   });
 
-  $: if (!$auth.loading && !$auth.authenticated && window.location.hash !== '#/login') {
+  $: if (!$auth.loading && !$auth.authenticated && !publicRoutes.includes(window.location.hash)) {
     push('/login');
   }
 </script>

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Text, Boolean, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
@@ -31,11 +31,35 @@ class Appointment(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     patient_id = Column(Integer, ForeignKey("patients.id"))
-    date_time = Column(DateTime)
+    date_time = Column(DateTime, index=True)
     description = Column(String)
     status = Column(String, default="pendiente") # pendiente, atendido, cancelado
 
     patient = relationship("Patient", back_populates="appointments")
+
+    # Índice único para evitar citas en el mismo horario
+    __table_args__ = (
+        Index("idx_appointment_datetime_unique", "date_time", unique=True),
+    )
+
+class Availability(Base):
+    __tablename__ = "availability"
+
+    id = Column(Integer, primary_key=True, index=True)
+    day_of_week = Column(Integer) # 0=Lunes, 6=Domingo
+    start_time = Column(String) # "HH:MM"
+    end_time = Column(String) # "HH:MM"
+    slot_duration = Column(Integer, default=30) # minutos
+    active = Column(Boolean, default=True)
+
+class AvailabilityOverride(Base):
+    __tablename__ = "availability_overrides"
+
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(String) # "YYYY-MM-DD"
+    start_time = Column(String, nullable=True)
+    end_time = Column(String, nullable=True)
+    is_blocked = Column(Boolean, default=False)
 
 class Payment(Base):
     __tablename__ = "payments"
