@@ -87,7 +87,7 @@ loreycontrol.irisvisual.com {
     reverse_proxy localhost:3011
 
     # Redirigir peticiones de API al Backend (Puerto 3010)
-    handle_path /api/* {
+    handle /api/* {
         reverse_proxy localhost:3010
     }
 
