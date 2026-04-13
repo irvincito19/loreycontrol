@@ -151,6 +151,26 @@
     }
   }
 
+  async function updateStatus(appt: any, newStatus: string) {
+    try {
+      await api.appointments.update(appt.id, {
+        patient_id: appt.patient_id,
+        date_time: appt.date_time,
+        description: appt.description,
+        status: newStatus
+      });
+      
+      // Actualizar localmente la lista de citas del día si el modal está abierto
+      selectedDayAppointments = selectedDayAppointments.map(a => 
+        a.id === appt.id ? { ...a, status: newStatus } : a
+      );
+      
+      await loadAppointments();
+    } catch (e) {
+      alert('Error al actualizar estado: ' + e);
+    }
+  }
+
   function getAppointmentsForDay(date: any) {
     if (!date) return [];
     const dateStr = date.format('YYYY-MM-DD');
@@ -385,10 +405,35 @@
             <div class="flex-1">
               <h3 class="font-black text-white text-sm uppercase tracking-tight">{appt.patient?.name || `Paciente #${appt.patient_id}`}</h3>
               <p class="text-[11px] text-[#ADC9CD] italic mt-0.5">{appt.description || 'Sin descripción'}</p>
-              <div class="flex items-center mt-2">
-                <span class="px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest border {statusColors[appt.status]}">
-                  {appt.status}
-                </span>
+              <div class="flex flex-wrap items-center gap-2 mt-3">
+                <button 
+                  onclick={() => updateStatus(appt, 'atendido')}
+                  disabled={appt.status === 'atendido'}
+                  class="px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all
+                    {appt.status === 'atendido' 
+                      ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                      : 'bg-black/20 text-[#ADC9CD] border border-white/5 hover:border-green-500/50 hover:text-green-400'}"
+                >
+                  ✅ {appt.status === 'atendido' ? 'Atendido' : 'Atender'}
+                </button>
+                <button 
+                  onclick={() => updateStatus(appt, 'cancelado')}
+                  disabled={appt.status === 'cancelado'}
+                  class="px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all
+                    {appt.status === 'cancelado' 
+                      ? 'bg-red-500/20 text-red-400 border border-red-500/30' 
+                      : 'bg-black/20 text-[#ADC9CD] border border-white/5 hover:border-red-500/50 hover:text-red-400'}"
+                >
+                  ❌ {appt.status === 'cancelado' ? 'Cancelado' : 'Cancelar'}
+                </button>
+                {#if appt.status !== 'pendiente'}
+                  <button 
+                    onclick={() => updateStatus(appt, 'pendiente')}
+                    class="px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest bg-black/20 text-[#ADC9CD] border border-white/5 hover:border-orange-500/50 hover:text-orange-400 transition-all"
+                  >
+                    ⏳ Reset
+                  </button>
+                {/if}
               </div>
             </div>
             <button 

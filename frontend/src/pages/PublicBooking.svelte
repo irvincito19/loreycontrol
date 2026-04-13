@@ -12,6 +12,7 @@
   let selectedSlot = $state<string | null>(null);
   let slots = $state<any[]>([]);
   let loading = $state(false);
+  let patientName = $state('');
 
   // Cargar slots cuando cambie la fecha
   $effect(() => {
@@ -43,10 +44,14 @@
   }
 
   function sendWhatsApp() {
+    if (!patientName.trim()) {
+      alert("Por favor, ingresa tu nombre para continuar.");
+      return;
+    }
     const phone = "5219511872103";
     const dateFormatted = dayjs(selectedDate).format('dddd D [de] MMMM');
     const time = selectedSlot || "[seleccionar horario]";
-    const message = `Hola, me gustaría agendar una cita para el ${dateFormatted} a las ${time}. ¿Está disponible? Mi nombre es: `;
+    const message = `Hola, soy ${patientName}. Me gustaría agendar una cita para el ${dateFormatted} a las ${time}. ¿Está disponible?`;
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
   }
@@ -163,10 +168,21 @@
                 <span>¿Encontraste un espacio?</span>
             </h3>
             <p class="text-sm text-[#ADC9CD] font-medium leading-relaxed mb-6">
-                Para apartar tu lugar, envíanos un mensaje por WhatsApp mencionando el horario de tu interés. ¡Estaremos encantados de atenderte!
+                Para apartar tu lugar, ingresa tu nombre y envíanos un mensaje por WhatsApp mencionando el horario de tu interés.
             </p>
             
-            <div class="flex flex-col space-y-3">
+            <div class="space-y-4">
+                <div>
+                    <label for="p-name" class="block text-[10px] font-black uppercase tracking-widest text-[#ADC9CD] mb-2 px-1">Tu Nombre Completo</label>
+                    <input 
+                        id="p-name"
+                        type="text" 
+                        bind:value={patientName}
+                        placeholder="Escribe tu nombre aquí..."
+                        class="w-full bg-black/20 border border-white/10 rounded-2xl p-4 text-white text-sm focus:border-dent-kelly focus:ring-1 focus:ring-dent-kelly transition-all placeholder:text-white/20"
+                    />
+                </div>
+
                 <button 
                     onclick={sendWhatsApp}
                     class="w-full py-4 bg-dent-kelly hover:bg-white hover:text-dent-forest text-white rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-lg shadow-dent-kelly/20 flex items-center justify-center space-x-3"
