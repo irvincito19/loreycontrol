@@ -4,10 +4,11 @@
   import { Calendar, Clock, Save, ShieldAlert, Plus, Trash2, CheckCircle2, XCircle } from 'lucide-svelte';
   import dayjs from 'dayjs';
 
+  let selectedLocation = $state('Oaxaca');
   let config = $state<any[]>([]);
   let loading = $state(true);
   let saving = $state(false);
-  let successMessage = $state('');
+  import { uiStore } from '../lib/ui.svelte';
 
   // Días de la semana para la configuración base
   const days = [
@@ -20,14 +21,14 @@
     { id: 6, name: 'Domingo' }
   ];
 
-  onMount(async () => {
-    await loadConfig();
+  $effect(() => {
+    loadConfig();
   });
 
   async function loadConfig() {
     loading = true;
     try {
-      const data = await api.availability.getConfig();
+      const data = await api.availability.getConfig(selectedLocation);
       // Inicializar días faltantes si no hay config
       const completeConfig = days.map(day => {
         const found = data.find((c: any) => c.day_of_week === day.id);
@@ -36,6 +37,7 @@
           start_time: '09:00',
           end_time: '18:00',
           slot_duration: 30,
+          location: selectedLocation,
           active: false
         };
       });
@@ -51,10 +53,9 @@
     saving = true;
     try {
       await api.availability.updateConfig(dayConfig);
-      successMessage = `Horario de ${days[dayConfig.day_of_week].name} actualizado`;
-      setTimeout(() => successMessage = '', 3000);
+      uiStore.addToast(`Horario de ${days[dayConfig.day_of_week].name} actualizado`, 'success');
     } catch (e) {
-      alert('Error al guardar: ' + e);
+      uiStore.addToast('Error al guardar: ' + e, 'error');
     } finally {
       saving = false;
     }
@@ -68,9 +69,29 @@
 
 <div class="min-h-screen px-4 py-8 bg-[#012B33]">
   <div class="max-w-5xl mx-auto space-y-8">
-    <header>
-      <h1 class="text-4xl font-black text-white uppercase tracking-tighter">Configuración de Agenda</h1>
-      <p class="text-[#ADC9CD] font-medium italic">Define tus horarios de atención y la duración de cada consulta.</p>
+    <header class="flex flex-col md:flex-row md:items-end justify-between gap-6">
+      <div>
+        <h1 class="text-4xl font-black text-white uppercase tracking-tighter">Configuración de Agenda</h1>
+        <p class="text-[#ADC9CD] font-medium italic">Define tus horarios de atención por sucursal.</p>
+      </div>
+
+      <!-- Location Selector -->
+      <div class="bg-black/40 p-1 rounded-2xl border border-white/5 flex shrink-0">
+        <button 
+          onclick={() => selectedLocation = 'Oaxaca'}
+          class="px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all
+            {selectedLocation === 'Oaxaca' ? 'bg-dent-kelly text-white shadow-lg' : 'text-white/40 hover:text-white'}"
+        >
+          Oaxaca
+        </button>
+        <button 
+          onclick={() => selectedLocation = 'Miahuatlán'}
+          class="px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all
+            {selectedLocation === 'Miahuatlán' ? 'bg-dent-kelly text-white shadow-lg' : 'text-white/40 hover:text-white'}"
+        >
+          Miahuatlán
+        </button>
+      </div>
     </header>
 
     {#if loading}
@@ -158,12 +179,6 @@
       </div>
     {/if}
 
-    {#if successMessage}
-      <div class="fixed bottom-8 right-8 bg-dent-kelly text-white px-6 py-4 rounded-[1.5rem] shadow-2xl flex items-center space-x-3 animate-in slide-in-from-bottom-10">
-        <CheckCircle2 size={24} />
-        <span class="font-black uppercase tracking-tight">{successMessage}</span>
-      </div>
-    {/if}
   </div>
 </div>
 

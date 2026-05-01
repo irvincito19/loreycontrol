@@ -9,15 +9,16 @@
   dayjs.locale('es');
 
   let selectedDate = $state(dayjs().format('YYYY-MM-DD'));
+  let selectedLocation = $state('Oaxaca'); // default
   let selectedSlot = $state<string | null>(null);
   let slots = $state<any[]>([]);
   let loading = $state(false);
   let patientName = $state('');
 
-  // Cargar slots cuando cambie la fecha
+  // Cargar slots cuando cambie la fecha o lugar
   $effect(() => {
-    if (selectedDate) {
-      selectedSlot = null; // Resetear selección al cambiar fecha
+    if (selectedDate && selectedLocation) {
+      selectedSlot = null; // Resetear selección al cambiar fecha o lugar
       loadSlots();
     }
   });
@@ -25,7 +26,7 @@
   async function loadSlots() {
     loading = true;
     try {
-      slots = await api.availability.getSlots(selectedDate);
+      slots = await api.availability.getSlots(selectedDate, selectedLocation);
     } catch (e) {
       console.error('Error cargando disponibilidad:', e);
     } finally {
@@ -51,7 +52,7 @@
     const phone = "5219511872103";
     const dateFormatted = dayjs(selectedDate).format('dddd D [de] MMMM');
     const time = selectedSlot || "[seleccionar horario]";
-    const message = `Hola, soy ${patientName}. Me gustaría agendar una cita para el ${dateFormatted} a las ${time}. ¿Está disponible?`;
+    const message = `Hola, soy ${patientName}. Me gustaría agendar una cita en ${selectedLocation} para el ${dateFormatted} a las ${time}. ¿Está disponible?`;
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
   }
@@ -70,7 +71,27 @@
         <span class="text-[10px] font-black uppercase tracking-[0.2em] text-dent-kelly">Consulta de Disponibilidad</span>
       </div>
       <h1 class="text-5xl font-black uppercase tracking-tighter leading-none italic animate-in slide-in-from-top-4 duration-500">Dental Lorey</h1>
-      <p class="text-[#ADC9CD] text-sm font-medium italic opacity-80 decoration-dent-kelly decoration-2">Selecciona una fecha para visualizar los horarios libres.</p>
+      <p class="text-[#ADC9CD] text-sm font-medium italic opacity-80 decoration-dent-kelly decoration-2">Selecciona la sucursal y fecha para visualizar los horarios libres.</p>
+      
+      <!-- Location Selector -->
+      <div class="flex justify-center mt-8">
+        <div class="bg-black/40 p-1 rounded-2xl border border-white/5 flex">
+          <button 
+            onclick={() => selectedLocation = 'Oaxaca'}
+            class="px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all
+              {selectedLocation === 'Oaxaca' ? 'bg-dent-kelly text-white shadow-lg' : 'text-white/40 hover:text-white'}"
+          >
+            Oaxaca
+          </button>
+          <button 
+            onclick={() => selectedLocation = 'Miahuatlán'}
+            class="px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all
+              {selectedLocation === 'Miahuatlán' ? 'bg-dent-kelly text-white shadow-lg' : 'text-white/40 hover:text-white'}"
+          >
+            Miahuatlán
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -196,7 +217,7 @@
         <div class="flex items-center justify-center space-x-6 text-[#ADC9CD] opacity-60">
             <div class="flex items-center space-x-2">
                 <MapPin size={14} />
-                <span class="text-[10px] font-bold uppercase tracking-widest">Sucursal Centro</span>
+                <span class="text-[10px] font-bold uppercase tracking-widest">Sucursal {selectedLocation}</span>
             </div>
             <div class="w-1 h-1 bg-white/20 rounded-full"></div>
             <div class="flex items-center space-x-2">

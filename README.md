@@ -10,14 +10,15 @@
 - **Dashboard Operativo**: Resumen rápido de citas del día y estados financieros.
 - **Gestión de Pacientes**: Expedientes detallados con historial de tratamientos y notas clínicas.
 - **Calendario Administrativo**: Control total sobre la agenda, creación manual de citas y gestión de estados (confirmada, cancelada, completada).
-- **Módulo de Pagos**: Registro de ingresos asociados a tratamientos, manteniendo un historial claro de cobros.
-- **Configuración de Disponibilidad**: Herramienta flexible para definir horarios de trabajo por día de la semana, manejando automáticamente los slots para el portal público.
-- **Seguridad Robusta**: Acceso restringido mediante usuarios y contraseñas con encriptación y sesiones seguras (JWT).
+- **Módulo de Pagos y Presupuestos**: Control de presupuestos iniciales, saldos pendientes y registro de ingresos asociados a tratamientos.
+- **Soporte Multi-Sucursal**: Gestión unificada para sucursales en **Oaxaca de Juárez** y **Miahuatlán de Porfirio Díaz**, evitando traslapes de agenda.
+- **Configuración de Disponibilidad**: Herramienta flexible para definir horarios de atención por sucursal y día de la semana.
+- **Seguridad Robusta**: Acceso restringido para doctores y personal administrativo mediante JWT.
 
 ### 🤳 Para el Paciente (Portal Público)
-- **Auto-Agendado Online**: Interfaz intuitiva para que los pacientes seleccionen el servicio y el horario que mejor les convenga.
-- **Validación en Tiempo Real**: El sistema solo muestra horarios libres basados en la configuración de la clínica y las citas existentes.
-- **Confirmación vía WhatsApp**: Una vez seleccionada la cita, el sistema genera automáticamente un mensaje personalizado para confirmar vía WhatsApp con un solo clic.
+- **Auto-Agendado Online**: Selección de sucursal (Oaxaca/Miahuatlán), servicio y horario disponible.
+- **Validación Geográfica**: El sistema coordina la presencia del doctor en las distintas sedes para evitar errores de agenda.
+- **Confirmación vía WhatsApp**: Generación automática de mensajes personalizados detallando sucursal, fecha y hora.
 
 ---
 
@@ -67,13 +68,18 @@ chmod +x deploy.sh
 3. Levanta los servicios optimizados.
 4. Limpia imágenes antiguas para ahorrar espacio en disco.
 
-### 5️⃣ Inicialización de Datos (Primer Despliegue)
-Solo la primera vez, ejecuta el script de "semilla" para crear el usuario administrador:
+Solo la primera vez, ejecuta el script de "semilla" para crear los usuarios administrativos:
 ```bash
 docker compose exec backend python seed.py
 ```
-*   **Usuario**: `admin`
-*   **Contraseña**: `admin123` (Cámbiala inmediatamente en el panel).
+
+| Usuario | Contraseña | Rol |
+| :--- | :--- | :--- |
+| `javier` | `javierpassword` | Dr. Javier López |
+| `katia` | `katiapassword` | Dra. Katia González |
+| `recepcion` | `recepcionpassword` | Recepcionista |
+
+*Nota: Se recomienda cambiar las contraseñas tras el primer ingreso.*
 
 ---
 
@@ -110,7 +116,8 @@ sudo systemctl reload caddy
 ---
 
 ## 📊 Mantenimiento y Backups
-- **Base de Datos**: Se encuentra en `backend/data/loreydent.db`. Se recomienda hacer copias de seguridad de este archivo semanalmente.
+- **Base de Datos**: El sistema utiliza **MySQL 8.0**. Los datos persisten en el volumen `mysql_data` definido en Docker.
+- **Backups**: Se recomienda realizar dumps periódicos de la base de datos MySQL.
 - **Logs**: Puedes ver los logs del sistema con `docker compose logs -f`.
 
 ---

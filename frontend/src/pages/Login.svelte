@@ -3,10 +3,10 @@
   import { push } from 'svelte-spa-router';
   import { LogIn } from 'lucide-svelte';
 
-  let username = '';
-  let password = '';
-  let error = '';
-  let loading = false;
+  let username = $state('');
+  let password = $state('');
+  let error = $state('');
+  let loading = $state(false);
 
   async function handleLogin() {
     error = '';
@@ -36,7 +36,7 @@
     </div>
 
 
-    <form on:submit|preventDefault={handleLogin} class="space-y-6">
+    <form onsubmit={(e) => { e.preventDefault(); handleLogin(); }} class="space-y-6">
       <div>
         <label for="username" class="block text-sm font-medium text-[#ADC9CD] mb-1">Usuario</label>
         <input

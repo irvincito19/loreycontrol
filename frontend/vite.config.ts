@@ -8,6 +8,15 @@ export default defineConfig({
     tailwindcss(),
     svelte(),
   ],
+  server: {
+    port: 3011,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3010',
+        changeOrigin: true,
+      }
+    }
+  }
 })
 
 

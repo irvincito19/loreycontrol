@@ -38,3 +38,21 @@ async def register_user(user: schemas.UserCreate, db: Session = Depends(database
 @router.get("/me", response_model=schemas.User)
 async def read_users_me(current_user: models.User = Depends(auth.get_current_user)):
     return current_user
+
+@router.get("/users", response_model=list[schemas.User])
+async def list_users(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    return db.query(models.User).all()
+
+@router.put("/users/{user_id}", response_model=schemas.User)
+async def update_user(user_id: int, user_update: schemas.UserBase, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    db_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
+    db_user.full_name = user_update.full_name
+    db_user.email = user_update.email
+    db_user.phone = user_update.phone
+    
+    db.commit()
+    db.refresh(db_user)
+    return db_user

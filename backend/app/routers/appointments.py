@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from .. import models, schemas, auth, database
 
 router = APIRouter(prefix="/appointments", tags=["Citas"])
@@ -11,13 +11,16 @@ async def get_appointments(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user),
     start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None,
+    location: Optional[str] = None
 ):
     query = db.query(models.Appointment)
     if start_date:
         query = query.filter(models.Appointment.date_time >= start_date)
     if end_date:
         query = query.filter(models.Appointment.date_time <= end_date)
+    if location:
+        query = query.filter(models.Appointment.location == location)
     return query.order_by(models.Appointment.date_time.asc()).all()
 
 @router.post("/", response_model=schemas.Appointment)
@@ -31,17 +34,32 @@ async def create_appointment(
     if not db_patient:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
 
-    # Verificar disponibilidad (concurrencia)
-    existing_appointment = db.query(models.Appointment).filter(
-        models.Appointment.date_time == appointment.date_time,
-        models.Appointment.status != "cancelado"
-    ).first()
+    # Verificar disponibilidad (concurrencia y traslapes)
+    # Cada cita se asume de 30 minutos
+    new_start = appointment.date_time
+    new_end = new_start + timedelta(minutes=30)
     
-    if existing_appointment:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El horario seleccionado ya no está disponible"
-        )
+    # Buscar cualquier cita que se traslape
+    # (Existing_Start < New_End) AND (New_Start < Existing_End)
+    
+    day_start = new_start.replace(hour=0, minute=0, second=0)
+    day_end = new_start.replace(hour=23, minute=59, second=59)
+    
+    existing_appointments = db.query(models.Appointment).filter(
+        models.Appointment.date_time >= day_start - timedelta(minutes=60), # Margen amplio
+        models.Appointment.date_time <= day_end,
+        models.Appointment.status != "cancelado"
+    ).all()
+    
+    for existing in existing_appointments:
+        ex_start = existing.date_time
+        ex_end = ex_start + timedelta(minutes=30)
+        
+        if max(new_start, ex_start) < min(new_end, ex_end):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Conflicto de horario: Ya existe una cita en {existing.location} que se traslapa con este horario."
+            )
         
     db_appointment = models.Appointment(**appointment.dict())
     db.add(db_appointment)

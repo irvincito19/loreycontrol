@@ -1,0 +1,3 @@
+El usuario javier ya existe.
+El usuario katia ya existe.
+El usuario recepcion ya existe.

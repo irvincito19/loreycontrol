@@ -9,26 +9,39 @@
 
   dayjs.locale('es');
 
-  let stats = {
+  let stats = $state({
     patients: 0,
     appointmentsToday: 0,
     pendingPayments: 0
+  });
+  let allAppointments = $state<any[]>([]);
+  let locationFilter = $state('Ambas');
+  
+  let filteredAppointments = $derived.by(() => {
+    if (locationFilter === 'Ambas') return allAppointments.slice(0, 5);
+    return allAppointments.filter(a => a.location === locationFilter).slice(0, 5);
+  });
+  
+  let loading = $state(true);
+
+  const statusStyles: any = {
+    'pendiente': 'bg-amber-500/10 text-amber-500 border-amber-500/20',
+    'atendido': 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+    'cancelado': 'bg-rose-500/10 text-rose-500 border-rose-500/20'
   };
-  let recentAppointments: any[] = [];
-  let loading = true;
 
   onMount(async () => {
     try {
       const patients = await api.patients.list();
       const today = dayjs().format('YYYY-MM-DD');
-      const startOfDay = dayjs().startOf('day').toISOString();
-      const endOfDay = dayjs().endOf('day').toISOString();
+      const startOfDay = dayjs().startOf('day').format('YYYY-MM-DD[T]00:00:00');
+      const endOfDay = dayjs().endOf('day').format('YYYY-MM-DD[T]23:59:59');
       
       const appointments = await api.appointments.list(startOfDay, endOfDay);
       
       stats.patients = patients.length;
       stats.appointmentsToday = appointments.length;
-      recentAppointments = appointments.slice(0, 5);
+      allAppointments = appointments;
     } catch (e) {
       console.error(e);
     } finally {
@@ -80,8 +93,8 @@
 
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <!-- Today's Appointments -->
-    <div class="card bg-[#013B44] border-white/10">
-      <div class="flex items-center justify-between mb-8">
+    <div class="card bg-[#013B44] border-white/10 flex flex-col">
+      <div class="flex items-center justify-between mb-6">
         <h2 class="text-xl font-black text-white flex items-center space-x-2 uppercase tracking-tight">
           <Clock size={24} class="text-dent-kelly" />
           <span>Agenda Próxima</span>
@@ -89,26 +102,57 @@
         <a href="/appointments" use:link class="text-dent-kelly text-sm font-black hover:text-white transition-colors uppercase italic tracking-widest">Ver Todo</a>
       </div>
 
+      <div class="flex items-center p-1 bg-black/20 rounded-xl mb-6">
+        <button 
+          onclick={() => locationFilter = 'Ambas'}
+          class="flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all {locationFilter === 'Ambas' ? 'bg-dent-kelly text-white shadow-md' : 'text-white/40 hover:text-white'}"
+        >Ambas</button>
+        <button 
+          onclick={() => locationFilter = 'Oaxaca'}
+          class="flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all {locationFilter === 'Oaxaca' ? 'bg-dent-kelly text-white shadow-md' : 'text-white/40 hover:text-white'}"
+        >Oaxaca</button>
+        <button 
+          onclick={() => locationFilter = 'Miahuatlán'}
+          class="flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all {locationFilter === 'Miahuatlán' ? 'bg-dent-kelly text-white shadow-md' : 'text-white/40 hover:text-white'}"
+        >Miahua.</button>
+      </div>
+
       {#if loading}
         <div class="space-y-4">
           <div class="h-16 bg-white/5 animate-pulse rounded-2xl"></div>
           <div class="h-16 bg-white/5 animate-pulse rounded-2xl"></div>
         </div>
-      {:else if recentAppointments.length === 0}
-        <div class="text-center py-12 text-[#ADC9CD] bg-black/10 rounded-3xl border border-dashed border-white/10 italic">
-          No hay citas programadas para hoy.
+      {:else if filteredAppointments.length === 0}
+        <div class="flex flex-col items-center justify-center py-8 opacity-50">
+          <Calendar size={48} class="mb-4 text-[#ADC9CD]" />
+          <p class="font-bold text-sm tracking-widest uppercase text-center">No hay citas para {locationFilter.toLowerCase()} hoy</p>
         </div>
       {:else}
-        <div class="space-y-3">
-          {#each recentAppointments as appt}
+        <div class="space-y-3 flex-1 overflow-y-auto">
+          {#each filteredAppointments as appt}
             <div class="flex items-center justify-between p-5 bg-white/5 hover:bg-white/10 rounded-3xl transition-all border border-transparent hover:border-white/10 group">
               <div class="flex items-center space-x-4">
                 <div class="bg-dent-kelly text-white text-xs font-black px-4 py-2 rounded-xl shadow-lg shadow-black/20">
                   {dayjs(appt.date_time).format('HH:mm')}
                 </div>
                 <div>
-                  <p class="font-black text-white text-lg tracking-tight uppercase">{appt.patient?.name || `Paciente #${appt.patient_id}`}</p>
+                  <p class="font-black text-white text-lg tracking-tight uppercase">{appt.patient?.first_name} {appt.patient?.last_name}</p>
                   <p class="text-xs text-[#ADC9CD] truncate max-w-[200px] font-medium italic opacity-80">{appt.description || 'Consulta Dental'}</p>
+                  <div class="flex items-center space-x-2 mt-1">
+                    <span class="px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest bg-black/30 border border-white/5 text-[#ADC9CD]">
+                      {appt.location}
+                    </span>
+                    <span class="px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest border {statusStyles[appt.status]}">
+                      {appt.status}
+                    </span>
+                  </div>
+                  <p class="text-[10px] font-black uppercase tracking-widest mt-1 {appt.patient?.doctor ? 'text-dent-mint' : 'text-rose-400 animate-pulse'}">
+                    {#if appt.patient?.doctor}
+                      Dr(a). {appt.patient.doctor.full_name}
+                    {:else}
+                      Debe tener doctor asignado
+                    {/if}
+                  </p>
                 </div>
               </div>
               <ChevronRight size={20} class="text-white/20 group-hover:text-dent-kelly transition-colors" />

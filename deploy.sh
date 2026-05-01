@@ -3,39 +3,41 @@
 # --- Script de Despliegue Automático para LoReyDent ---
 # Este script optimiza el proceso de actualización en el servidor VPS.
 
-echo "🚀 Iniciando proceso de despliegue..."
+echo "🚀 Iniciando proceso de despliegue (MODO LIMPIEZA TOTAL)..."
 
-# 1. Asegurar que estamos en el directorio correcto
-# CD_PATH=$(dirname "$0")
-# cd "$CD_PATH"
+# 1. Detener contenedores y ELIMINAR VOLÚMENES (Borra la base de datos para resetearla)
+# ATENCIÓN: Solo usar -v en fase de pruebas o si se desea borrar todo.
+echo "⏹️ Deteniendo contenedores y limpiando volúmenes..."
+docker compose down -v
 
-# 2. Descargar últimos cambios (Suele usarse si usas Git)
-# echo "📥 Obteniendo cambios de Git..."
-# git pull origin main
+# 2. Eliminar imágenes específicas para asegurar reconstrucción total
+echo "🗑️ Eliminando imágenes antiguas..."
+docker rmi loreydent-backend loreydent-frontend || true
 
-# 3. Detener contenedores actuales para liberar RAM
-echo "⏹️ Deteniendo contenedores para liberar recursos..."
-docker compose down
-
-# 4. Construir e iniciar en segundo plano
+# 3. Construir e iniciar en segundo plano
 echo "🛠️ Construyendo y levantando servicios..."
 docker compose up --build -d
 
-# 5. Limpiar imágenes huérfanas o antiguas para ahorrar espacio (Crucial en VPS de 2GB)
-echo "🧹 Limpiando imágenes antiguas y caché..."
+# 4. Limpiar caché residual de Docker
+echo "🧹 Limpiando caché..."
 docker image prune -f
 
-# 6. Esperar a que el backend esté listo
-echo "⏳ Esperando a que el backend inicie..."
-sleep 5
+# 5. Esperar a que el backend y MySQL estén listos
+echo "⏳ Esperando a que el backend y la base de datos inicien (20s)..."
+sleep 20
 
-# 7. Ejecutar semilla si es necesario (Opcional, descomentar si se desea resetear)
-# echo "🌱 Ejecutando base de datos inicial..."
-# docker compose exec backend python seed.py
+# 6. Ejecutar semilla para crear el administrador inicial (con reintentos)
+echo "🌱 Inicializando base de datos con el administrador..."
+for i in {1..5}; do
+    docker compose exec backend python seed.py && break
+    echo "⚠️ Intento $i fallido, reintentando en 5s..."
+    sleep 5
+done
 
-# 8. Verificar estado de los contenedores
+# 7. Verificar estado de los contenedores
 echo "✅ Estado de los servicios:"
 docker compose ps
 
-echo "🎉 ¡Despliegue completado con éxito!"
-echo "Accede a: https://loreycontrol.irisvisual.com"
+echo "🎉 ¡Despliegue y reseteo completado con éxito!"
+echo "Accede localmente a: http://localhost:3011"
+echo "Producción: https://loreycontrol.irisvisual.com"

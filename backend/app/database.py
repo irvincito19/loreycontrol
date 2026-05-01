@@ -2,12 +2,16 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./data/loreydent.db"
+import os
 
-
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+# Para producción, esta URL se sobrescribe mediante la variable de entorno DATABASE_URL en docker-compose
+# Ejemplo: mysql+pymysql://usuario:password@host_produccion/nombre_db
+SQLALCHEMY_DATABASE_URL = os.getenv(
+    "DATABASE_URL", 
+    "mysql+pymysql://loreydent:loreydent_pass@db/loreydent"
 )
+
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()

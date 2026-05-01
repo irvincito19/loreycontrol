@@ -3,19 +3,20 @@
   import { api } from '../lib/api';
   import { CreditCard, Plus, Search, User, DollarSign, Calendar, X } from 'lucide-svelte';
   import dayjs from 'dayjs';
+  import { uiStore } from '../lib/ui.svelte';
 
-  let payments: any[] = [];
-  let patients: any[] = [];
-  let loading = true;
-  let showModal = false;
+  let payments = $state<any[]>([]);
+  let patients = $state<any[]>([]);
+  let loading = $state(true);
+  let showModal = $state(false);
 
   // Form state
-  let paymentForm = {
+  let paymentForm = $state({
     patient_id: '',
     amount: '',
     method: 'efectivo',
     description: ''
-  };
+  });
 
   onMount(async () => {
     await Promise.all([loadPayments(), loadPatients()]);
@@ -53,16 +54,17 @@
         amount: parseFloat(paymentForm.amount)
       });
       showModal = false;
+      uiStore.addToast('Pago registrado correctamente', 'success');
       await loadPayments();
       paymentForm = { patient_id: '', amount: '', method: 'efectivo', description: '' };
     } catch (e) {
-      alert('Error: ' + e);
+      uiStore.addToast('Error al registrar pago: ' + e, 'error');
     }
   }
 
   function getPatientName(id: number) {
     const p = patients.find(p => p.id === id);
-    return p ? p.name : `ID: ${id}`;
+    return p ? `${p.first_name} ${p.last_name}` : `ID: ${id}`;
   }
 
   const methodColors: any = {
@@ -80,7 +82,7 @@
       <p class="text-[#ADC9CD] font-medium italic">Historial financiero y registro de ingresos de Dental Lorey.</p>
     </div>
 
-    <button on:click={openModal} class="btn-primary flex items-center space-x-2">
+    <button onclick={openModal} class="btn-primary flex items-center space-x-2">
       <Plus size={20} />
       <span>Registrar Pago</span>
     </button>
@@ -154,22 +156,23 @@
 <!-- Modal Form -->
 {#if showModal}
   <div class="fixed inset-0 bg-black/70 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+    <div class="absolute inset-0 z-[-1]" role="presentation" onclick={() => showModal = false}></div>
     <div class="bg-[#014D67] rounded-[2.5rem] w-full max-w-lg shadow-2xl animate-in fade-in zoom-in duration-300 border border-[#00ACB1]">
       <div class="p-6 border-b border-[#00ACB1]/20 flex justify-between items-center">
         <h2 class="text-2xl font-black text-white uppercase tracking-tight">Registrar Nuevo Pago</h2>
-        <button on:click={() => showModal = false} class="text-[#ADC9CD] hover:text-white transition-colors">
+        <button onclick={() => showModal = false} class="text-[#ADC9CD] hover:text-white transition-colors">
           <X size={28} />
         </button>
       </div>
 
       
-      <form on:submit|preventDefault={handleSubmit} class="p-6 space-y-4">
+      <form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="p-6 space-y-4">
         <div>
           <label for="pay-patient" class="block text-sm font-medium text-[#ADC9CD] mb-1">Paciente *</label>
           <select id="pay-patient" bind:value={paymentForm.patient_id} required class="input-field bg-black/20 border-[#00ACB1]/20 text-white">
             <option value="">Selecciona un paciente</option>
             {#each patients as p}
-              <option value={p.id}>{p.name}</option>
+              <option value={p.id}>{p.first_name} {p.last_name}</option>
             {/each}
           </select>
         </div>
@@ -199,7 +202,7 @@
 
 
         <div class="flex space-x-4 pt-4">
-          <button type="button" on:click={() => showModal = false} class="flex-1 px-4 py-2 border border-white/20 rounded-xl text-[#ADC9CD] hover:bg-white/10 font-bold transition-all">
+          <button type="button" onclick={() => showModal = false} class="flex-1 px-4 py-2 border border-white/20 rounded-xl text-[#ADC9CD] hover:bg-white/10 font-bold transition-all">
             Cancelar
           </button>
           <button type="submit" class="flex-1 btn-primary">

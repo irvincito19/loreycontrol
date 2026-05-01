@@ -1,4 +1,17 @@
 services:
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      - MYSQL_DATABASE=loreydent
+      - MYSQL_USER=loreydent
+      - MYSQL_PASSWORD=loreydent_pass
+      - MYSQL_ROOT_PASSWORD=root_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+
   backend:
     build:
       context: ./backend
@@ -6,18 +19,26 @@ services:
       - "3010:3010"
     volumes:
       - ./backend/data:/app/data
-
     environment:
+      # CAMBIAR PARA PRODUCCIÓN: Generar una clave secreta fuerte
       - SECRET_KEY=L0R3yD3nt_S3cr3t_K3y_Ch4ng3_M3
+      # CAMBIAR PARA PRODUCCIÓN: Usar credenciales seguras y el host de la DB real
+      - DATABASE_URL=mysql+pymysql://loreydent:loreydent_pass@db/loreydent
+    depends_on:
+      - db
     restart: always
 
   frontend:
     build:
       context: ./frontend
       args:
-        - VITE_API_URL=http://localhost:3010/api
+        # Usamos /api para que sea relativo y use el proxy de nginx
+        - VITE_API_URL=/api
     ports:
       - "3011:3011"
     depends_on:
       - backend
     restart: always
+
+volumes:
+  mysql_data:
